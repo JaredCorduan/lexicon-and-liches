@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lexicon & Liches</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+        }
+        h1 {
+            text-align: center;
+            color: #c9a227;
+            text-shadow: 2px 2px 4px #000;
+            margin-bottom: 5px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 5px;
+        }
+        .puzzle-info {
+            text-align: center;
+            color: #c9a227;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+        .input-area {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        input[type="text"] {
+            flex: 1;
+            padding: 12px;
+            font-size: 16px;
+            border: 2px solid #444;
+            border-radius: 6px;
+            background: #2a2a4e;
+            color: #eee;
+        }
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #c9a227;
+        }
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            background: #c9a227;
+            color: #1a1a2e;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover {
+            background: #d4af37;
+        }
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+        .message {
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        .message.error {
+            background: #4a2020;
+            color: #ff6b6b;
+        }
+        .message.success {
+            background: #204a20;
+            color: #6bff6b;
+        }
+        .message.info {
+            background: #2a2a4e;
+            color: #aaa;
+        }
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #2a2a4e;
+            border-radius: 6px;
+        }
+        .stat {
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #c9a227;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #888;
+        }
+        .guess-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .guess-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            margin-bottom: 8px;
+            background: #2a2a4e;
+            border-radius: 6px;
+            border-left: 4px solid;
+        }
+        .guess-word {
+            font-weight: bold;
+        }
+        .guess-item.hint-item {
+            background: #1e1e3a;
+            border-style: dashed;
+            opacity: 0.7;
+        }
+        .guess-item.hint-item .guess-word::before {
+            content: "\01F4A1 ";
+            font-size: 12px;
+        }
+        .guess-item.hint-item .guess-word {
+            color: #999;
+            font-weight: normal;
+        }
+        .guess-stats {
+            text-align: right;
+            font-size: 14px;
+        }
+        .guess-score {
+            color: #c9a227;
+        }
+        .guess-rank {
+            color: #888;
+            font-size: 12px;
+        }
+        .button-row {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .secondary-btn {
+            padding: 8px 16px;
+            background: transparent;
+            color: #888;
+            border: 1px solid #666;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .secondary-btn:hover {
+            color: #c9a227;
+            border-color: #c9a227;
+        }
+        .give-up:hover {
+            color: #ff6b6b;
+            border-color: #ff6b6b;
+        }
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: #888;
+        }
+        .hint {
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+            margin-top: 20px;
+        }
+        .footer {
+            text-align: center;
+            font-size: 12px;
+            color: #555;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #333;
+        }
+        .footer a {
+            color: #888;
+        }
+        .footer a:hover {
+            color: #c9a227;
+        }
+    </style>
+</head>
+<body>
+    <h1>Lexicon & Liches</h1>
+    <p class="subtitle">Guess the secret word!<br>word2vec trained on the three D&D 5e (2014) core books.</p>
+    <p class="puzzle-info" id="puzzle-info"></p>
+
+    <div id="loading" class="loading">Loading word vectors...</div>
+
+    <div id="game" style="display: none;">
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-value" id="guess-count">0</div>
+                <div class="stat-label">Guesses</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="best-rank">-</div>
+                <div class="stat-label">Best Rank</div>
+            </div>
+        </div>
+
+        <div class="input-area">
+            <input type="text" id="guess-input" placeholder="Enter a word..." autocomplete="off">
+            <button id="guess-btn">Guess</button>
+        </div>
+
+        <div id="message"></div>
+
+        <ul class="guess-list" id="guess-list"></ul>
+
+        <div class="button-row">
+            <button class="secondary-btn" id="hint-btn">Get Hint</button>
+            <button class="secondary-btn give-up" id="give-up-btn">Give Up</button>
+        </div>
+
+        <p class="hint">Hint: The closer to rank #1, the more similar the word.</p>
+    </div>
+
+    <footer class="footer">
+        Puzzle hasn't been updated in a while? <a href="https://github.com/JaredCorduan/lexicon-and-liches/issues" target="_blank">Poke me on GitHub</a> for a new one.
+    </footer>
+
+    <script>
+        // Configuration - change these daily!
+        const TARGET_WORD = "tavern";
+        const PUZZLE_NUMBER = 1;
+        const LAST_UPDATED = "2026-01-22, 4pm";
+
+        // Common stop words to exclude from hints
+        const STOP_WORDS = new Set([
+            'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
+            'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'been',
+            'be', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would',
+            'could', 'should', 'may', 'might', 'must', 'shall', 'can', 'need',
+            'it', 'its', 'this', 'that', 'these', 'those', 'they', 'them',
+            'their', 'he', 'him', 'his', 'she', 'her', 'hers', 'we', 'us', 'our',
+            'you', 'your', 'i', 'me', 'my', 'who', 'whom', 'which', 'what',
+            'where', 'when', 'why', 'how', 'all', 'each', 'every', 'both',
+            'few', 'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not',
+            'only', 'own', 'same', 'so', 'than', 'too', 'very', 'just', 'also',
+            'now', 'here', 'there', 'then', 'once', 'any', 'if', 'into', 'about',
+            'after', 'before', 'above', 'below', 'between', 'under', 'again',
+            'further', 'while', 'during', 'through', 'against', 'up', 'down',
+            'out', 'off', 'over', 'because', 'until', 'unless', 'although'
+        ]);
+
+        let vectors = {};
+        let vocabSize = 0;
+        let guesses = [];
+        let hintedWords = new Set(); // Track which words were hints
+        let gameOver = false;
+
+        // DOM elements
+        const loadingEl = document.getElementById('loading');
+        const gameEl = document.getElementById('game');
+        const inputEl = document.getElementById('guess-input');
+        const guessBtnEl = document.getElementById('guess-btn');
+        const messageEl = document.getElementById('message');
+        const guessListEl = document.getElementById('guess-list');
+        const guessCountEl = document.getElementById('guess-count');
+        const bestRankEl = document.getElementById('best-rank');
+        const giveUpBtnEl = document.getElementById('give-up-btn');
+        const hintBtnEl = document.getElementById('hint-btn');
+        const puzzleInfoEl = document.getElementById('puzzle-info');
+
+        // Set puzzle info
+        puzzleInfoEl.textContent = `Puzzle #${PUZZLE_NUMBER} \u2022 ${LAST_UPDATED}`;
+
+        let rankedWords = []; // Words sorted by similarity to target
+
+        // Cosine similarity between two vectors
+        function cosineSimilarity(a, b) {
+            let dot = 0, normA = 0, normB = 0;
+            for (let i = 0; i < a.length; i++) {
+                dot += a[i] * b[i];
+                normA += a[i] * a[i];
+                normB += b[i] * b[i];
+            }
+            return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+        }
+
+        // Calculate similarity score (0-100) and rank
+        function getSimilarityAndRank(targetWord, guessWord) {
+            const targetVec = vectors[targetWord];
+            const guessVec = vectors[guessWord];
+
+            const similarity = cosineSimilarity(targetVec, guessVec);
+            const score = (similarity + 1) * 50; // Scale from [-1,1] to [0,100]
+
+            // Calculate rank by counting how many words are more similar
+            let rank = 1;
+            for (const word in vectors) {
+                if (word !== targetWord) {
+                    const sim = cosineSimilarity(targetVec, vectors[word]);
+                    if (sim > similarity) rank++;
+                }
+            }
+
+            return { score, rank };
+        }
+
+        // Get color based on rank
+        function getRankColor(rank) {
+            if (rank <= 10) return '#6bff6b';
+            if (rank <= 100) return '#a8e6cf';
+            if (rank <= 500) return '#c9a227';
+            if (rank <= 1000) return '#ffa500';
+            return '#888';
+        }
+
+        // Show message
+        function showMessage(text, type = 'info') {
+            messageEl.textContent = text;
+            messageEl.className = 'message ' + type;
+            messageEl.style.display = 'block';
+        }
+
+        // Clear message
+        function clearMessage() {
+            messageEl.style.display = 'none';
+        }
+
+        // Update guess list display
+        function updateGuessList() {
+            // Sort by score descending
+            const sorted = [...guesses].sort((a, b) => b.score - a.score);
+
+            guessListEl.innerHTML = sorted.map((g, i) => `
+                <li class="guess-item${g.isHint ? ' hint-item' : ''}" style="border-color: ${getRankColor(g.rank)}">
+                    <span class="guess-word">${g.word}</span>
+                    <span class="guess-stats">
+                        <span class="guess-score">${g.score.toFixed(2)}</span>
+                        <br>
+                        <span class="guess-rank">#${g.rank} / ${vocabSize}</span>
+                    </span>
+                </li>
+            `).join('');
+
+            guessCountEl.textContent = guesses.length;
+
+            if (sorted.length > 0) {
+                bestRankEl.textContent = '#' + Math.min(...guesses.map(g => g.rank));
+            }
+        }
+
+        // Handle guess
+        function makeGuess() {
+            if (gameOver) return;
+
+            const word = inputEl.value.trim().toLowerCase();
+            inputEl.value = '';
+
+            if (!word) return;
+
+            // Check if already guessed
+            if (guesses.some(g => g.word === word)) {
+                showMessage('You already guessed that word!', 'error');
+                return;
+            }
+
+            // Check if in vocabulary
+            if (!(word in vectors)) {
+                showMessage('Unknown word: ' + word, 'error');
+                return;
+            }
+
+            clearMessage();
+
+            // Check for win
+            if (word === TARGET_WORD) {
+                gameOver = true;
+                guesses.push({ word, score: 100, rank: 1 });
+                updateGuessList();
+                showMessage(`You got it in ${guesses.length} guesses! The word was "${TARGET_WORD}"`, 'success');
+                inputEl.disabled = true;
+                guessBtnEl.disabled = true;
+                hintBtnEl.style.display = 'none';
+                giveUpBtnEl.style.display = 'none';
+                return;
+            }
+
+            // Calculate similarity and rank
+            const { score, rank } = getSimilarityAndRank(TARGET_WORD, word);
+            guesses.push({ word, score, rank });
+            updateGuessList();
+        }
+
+        // Check if a word is valid for hints (not a stop word)
+        function isValidHintWord(word) {
+            return !STOP_WORDS.has(word) && word.length >= 3;
+        }
+
+        // Get a hint - reveal an unguessed word slightly better than current best
+        function getHint() {
+            if (gameOver) return;
+
+            const guessedWords = new Set(guesses.map(g => g.word));
+
+            // Find current best rank (or start at a reasonable default)
+            const currentBestRank = guesses.length > 0
+                ? Math.min(...guesses.map(g => g.rank))
+                : 1000;
+
+            // Target: slightly better than current best (about 10-20% closer to #1)
+            const improvement = Math.max(1, Math.floor(currentBestRank * 0.15));
+            const targetRank = Math.max(1, currentBestRank - improvement);
+
+            let hintWord = null;
+            let hintRank = null;
+
+            // Search for a valid hint word near the target rank
+            // Start at target and expand outward
+            for (let offset = 0; offset < 200; offset++) {
+                // Try below target first (slightly worse), then above (slightly better)
+                for (const delta of [offset, -offset]) {
+                    const idx = targetRank - 1 + delta;
+                    if (idx < 0 || idx >= rankedWords.length) continue;
+
+                    const word = rankedWords[idx].word;
+                    if (!guessedWords.has(word) && word !== TARGET_WORD && isValidHintWord(word)) {
+                        hintWord = word;
+                        hintRank = idx + 1;
+                        break;
+                    }
+                }
+                if (hintWord) break;
+            }
+
+            if (hintWord) {
+                // Add the hint as a guess
+                hintedWords.add(hintWord);
+                const { score, rank } = getSimilarityAndRank(TARGET_WORD, hintWord);
+                guesses.push({ word: hintWord, score, rank, isHint: true });
+                updateGuessList();
+                clearMessage();
+            } else {
+                showMessage('No more hints available!', 'error');
+            }
+        }
+
+        // Give up
+        function giveUp() {
+            if (gameOver) return;
+            gameOver = true;
+            showMessage(`The word was "${TARGET_WORD}". Better luck next time!`, 'error');
+            inputEl.disabled = true;
+            guessBtnEl.disabled = true;
+            hintBtnEl.style.display = 'none';
+            giveUpBtnEl.style.display = 'none';
+        }
+
+        // Initialize
+        async function init() {
+            try {
+                const response = await fetch('vectors.json');
+                vectors = await response.json();
+                vocabSize = Object.keys(vectors).length;
+
+                // Verify target word exists
+                if (!(TARGET_WORD in vectors)) {
+                    loadingEl.textContent = 'Error: Target word not in vocabulary!';
+                    return;
+                }
+
+                // Pre-compute ranked word list for hints
+                loadingEl.textContent = 'Computing similarities...';
+                const targetVec = vectors[TARGET_WORD];
+                rankedWords = [];
+                for (const word in vectors) {
+                    if (word !== TARGET_WORD) {
+                        const sim = cosineSimilarity(targetVec, vectors[word]);
+                        rankedWords.push({ word, similarity: sim });
+                    }
+                }
+                rankedWords.sort((a, b) => b.similarity - a.similarity);
+
+                loadingEl.style.display = 'none';
+                gameEl.style.display = 'block';
+                inputEl.focus();
+            } catch (e) {
+                loadingEl.textContent = 'Error loading vectors: ' + e.message;
+            }
+        }
+
+        // Event listeners
+        guessBtnEl.addEventListener('click', makeGuess);
+        inputEl.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') makeGuess();
+        });
+        hintBtnEl.addEventListener('click', getHint);
+        giveUpBtnEl.addEventListener('click', giveUp);
+
+        // Start
+        init();
+    </script>
+</body>
+</html>
